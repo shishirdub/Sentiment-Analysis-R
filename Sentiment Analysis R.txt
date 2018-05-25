@@ -1,0 +1,89 @@
+library(twitteR)
+library(purrr)
+library(dplyr)
+require(RCurl)
+require(ROAuth)
+library(plyr)
+library(stringr)
+
+
+list.Positve <- scan("D:/DWBI CA-2 Project/Positive.txt",what = 'character',comment.char = ";")
+#print(list.Positive)
+class(list.Positive)
+list.Positive <- scan("D:/DWBI CA-2 Project/Positive.txt",what = 'character',comment.char = "")
+list.Negative <- scan("D:/DWBI CA-2 Project/Negative.txt",what = 'character',comment.char = "")
+#print(list.Negative)
+
+
+score.sentiments <- function(phrase,list.Postive,list.Negative){
+  
+  
+  phrase <- gsub('[[:punct:]]',"",phrase)
+  phrase <- gsub('[[:cntrl:]]',"",phrase)
+  phrase <- gsub('\\d+',"",phrase)
+  phrase <- tolower(phrase)
+  #print(phrase)
+  word.list <- strsplit(phrase,"\\s+")
+  #print(word.list)
+  words <- unlist(word.list,list)
+  #print(words)
+  
+  Positive_matches <- match(words,list.Postive)
+  
+  #print(Positive.matches)
+  is.Positve_matches <- sum(!is.na(Positive_matches))
+  #print(is.Positive.matches)
+  
+  
+  Negative_matches <- match(words,list.Negative)
+  #print(Negative.matches)
+  is.Negative_matches <- sum(!is.na(Negative_matches))
+  #print(is.Negative.matches)
+  
+  scores <- is.Positive_matches - is.Negative_matches
+  return(scores)
+}
+
+
+
+
+
+#twitter settings
+consumerKey <- '2Cv79tFG6HNydc9Ws7pxHAHMe'
+reqURL <- 'https://api.twitter.com/oauth/request_token'
+accessURL <- 'https://api.twitter.com/oauth/access_token'
+authURL <- 'https://api.twitter.com/oauth/authorize'
+consumerSecret <- 'pxndBk3XR3hKEYsQOFsmvKvSXMDygaMY7pBlKn4v1aXHTsb5jc'
+accessToken <- '988823586692567041-HO100qDu0ABqdGTPTgG8xPKyK72tALZ'
+accessTokenSecret <- 'ajOhEzrbvj4YTsQHMKZnmJuQGOdIJM2jvcHYGFVlbSc2w'
+
+twitCred <- OAuthFactory$new(consumerKey =consumerKey,
+                             consumerSecret=consumerSecret,
+                             requestURL= reqURL,
+                             accessURL =accessURL,
+                             authURL =authURL)
+twitCred$handshake()
+
+setup_twitter_oauth(consumerKey,consumerSecret,accessToken,accessTokenSecret)
+
+tweet<- userTimeline("@eurofound",n=1000)
+tweet_df <- tbl_df(map_df(tweet,as.data.frame))
+final <- lapply(tweet_df$text,score.sentiments,list.Positive=list.Positive,list.Negative=list.Negative)
+final <- unlist(final,list)
+tweet_df$text <- gsub('#',"",tweet_df$text)
+tweet_df$text <- gsub('@',"",tweet_df$text)
+tweet_df$text <- gsub('https.*',"",tweet_df$text)
+tweet_df$text <- gsub('<U.*',"",tweet_df$text)
+
+
+
+make_df <- data.frame(a=tweet_df$text,b=final)
+
+a <- gsub('#',"",a)
+a <- gsub('@',"",a)
+a <- gsub('https.*',"",a)
+a <- gsub('<U.*',"",a)
+make_df_A <- data.frame(c=make_df$a,d=make_df$b)
+
+
+write.csv(make_df_A, file = "EmploymentEUSentimentScore1")
